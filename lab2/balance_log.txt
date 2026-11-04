@@ -1,0 +1,9 @@
+Alex 2000
+Bruno 100
+Alex 100
+Bruno 10
+Chris 100
+Bruno 30
+Chris 50
+Alex 60
+Alex -2000

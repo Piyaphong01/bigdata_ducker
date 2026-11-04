@@ -1,0 +1,112 @@
+#-------------
+# Step 1: การเตรียม Container และการเข้าใช้งาน Beeline
+#-------------
+
+1.1 ตรวจสอบว่า Container ทั้งหมดทำงานปกติ:
+docker ps
+
+1.2 เข้าสู่ Terminal ของคอนเทนเนอร์ hive-server:
+docker exec -it hive-server bash
+
+1.3 เชื่อมต่อเข้า HiveServer2 ผ่าน Beeline:
+beeline -u "jdbc:hive2://localhost:10000/default" -n root
+
+#-------------
+# Step 2: การเปิดใช้งานโหมด ACID (Transaction Support)
+#-------------
+โดยค่าเริ่มต้น Hive ถูกออกแบบมาสำหรับงาน Data Warehouse สไตล์ Append-only (OLAP) 
+บน HDFS หากต้องการทำ UPDATE หรือ DELETE จะต้องเปิดใช้งาน Transaction Manager 
+และใช้ฟอร์แมต ORC ร่วมกับการทำ Bucketing
+
+2.1 -SQL- (ใน beeline)
+SET hive.support.concurrency=true;
+SET hive.enforce.bucketing=true;
+SET hive.exec.dynamic.partition.mode=nonstrict;
+SET hive.txn.manager=org.apache.hadoop.hive.ql.lockmgr.DbTxnManager;
+
+#-------------
+# Step 3: การสร้าง Database และ Transactional Table (DDL)
+#-------------
+?? อะไรคือ Transactional Table
+
+--basic-- sql command
+SHOW DATABASES;
+SHOW TABLES;
+USE <database name>
+USE <table name>
+
+DROP DATABASE store; -- กรณี Database ว่าง (ไม่มีตารางอยู่ข้างใน)
+DROP DATABASE store CASCADE; -- กรณีมีตารางค้างอยู่ด้านใน และต้องการลบทุกอย่างทิ้งพร้อมกัน
+
+3.1 สร้าง Database
+-SQL-
+
+CREATE DATABASE IF NOT EXISTS student_lab;
+
+USE student_lab; -- ประกาศใช้งาน database student_lab
+
+3.2 สร้างตาราง students พร้อมกำหนดคุณสมบัติ ACID:
+-SQL-
+
+CREATE TABLE students (
+    student_id INT,
+    first_name STRING,
+    last_name STRING,
+    major STRING,
+    gpa DOUBLE
+)
+CLUSTERED BY (student_id) INTO 2 BUCKETS
+STORED AS ORC
+TBLPROPERTIES ('transactional'='true');
+
+#-------------
+# Step 4: การเพิ่มข้อมูล (INSERT)
+#-------------
+
+-SQL-
+INSERT INTO students VALUES 
+(101, 'Somchai', 'Jaidee', 'Computer Engineering', 3.25),
+(102, 'Somsri', 'Rukrean', 'Data Science', 3.80),
+(103, 'Wichai', 'Kengmak', 'Electrical Engineering', 2.90);
+
+#-------------
+# Step 5: การสืบค้นข้อมูล (SELECT)
+#-------------
+
+5.1 ดูข้อมูลทั้งหมด
+SELECT * FROM students;
+
+5.2 กรองข้อมูลเฉพาะนักศึกษาที่มี GPA มากกว่า 3.00
+SELECT student_id, first_name, major, gpa 
+FROM students 
+WHERE gpa >= 3.00;
+
+5.3 คำนวณค่าเฉลี่ย GPA แยกตามสาขาวิชา (Aggregation)
+SELECT major, COUNT(*) AS total_students, AVG(gpa) AS avg_gpa
+FROM students
+GROUP BY major;
+
+#-------------
+# Step 6: การปรับปรุงข้อมูล (UPDATE)
+#-------------
+
+-SQL-
+-- ทำการ Update GPA
+UPDATE students 
+SET gpa = 3.10 
+WHERE student_id = 103;
+
+-- ตรวจสอบผลลัพธ์
+SELECT * FROM students WHERE student_id = 103;
+
+#-------------
+# Step 7: การลบข้อมูล (DELETE)
+#-------------
+
+-SQL-
+-- ลบข้อมูลนักศึกษารหัส 101
+DELETE FROM students 
+WHERE student_id = 101;
+
+-- ตรวจสอบข้อมูลคงเหลือทั้งหมด
+SELECT * FROM students;

@@ -1,0 +1,48 @@
+= for cmd & linux=
+python mapper.py < Note.txt | sort | python reducer.py
+
+= change permission =
+chmod +x <file>
+
+= go to namenode & run bash =
+docker exec -it namenode bash
+
+= create dir 'lab2_mapreduce' on namenode =
+mkdir /home/lab2_mapreduce
+
+= copy file to docker container =
+docker cp ./lab2_mapreduce namenode:/home/lab2_mapreduce
+
+= Upload Note.txt to hdfs =
+hdfs dfs -put ./Note.txt /user/lab2
+
+= MapReduce with hadoop streaming =
+hadoop jar /opt/hadoop-3.2.1/share/hadoop/tools/lib/hadoop-streaming-3.2.1.jar \
+-file mapper.py -mapper ./mapper.py \
+-file reducer.py -reducer ./reducer.py \
+-input /user/lab2/Note.txt \
+-output /user/lab2/output
+
+อธิบายส่วนประกอบของคำสั่งทีละบรรทัด
+1. hadoop jar /opt/hadoop-3.2.1/share/hadoop/tools/lib/hadoop-streaming-3.2.1.jar
+หน้าที่: เรียกใช้งานโปรแกรม MapReduce ผ่านไฟล์ JAR ของระบบ Hadoop
+
+hadoop-streaming-3.2.1.jar: ตัวช่วย (Library) ที่ทำหน้าที่เชื่อมประสานระหว่าง Hadoop (ซึ่งทำงานด้วย Java) กับสคริปต์ภายนอกอย่าง Python ผ่าน Standard Input (sys.stdin) และ Standard Output (sys.stdout)
+
+2. -file mapper.py -mapper ./mapper.py
+-file mapper.py: สั่งให้ Hadoop แนบ/อัปโหลดไฟล์ mapper.py จากเครื่องเรา ส่งไปยังเครื่องโหนดต่าง ๆ (Worker Nodes) ใน Cluster
+
+-mapper ./mapper.py: กำหนดว่าคำสั่งที่จะใช้รันขั้นตอน Mapper คืออะไร (สั่งให้รันสคริปต์ ./mapper.py)
+
+3. -file reducer.py -reducer ./reducer.py
+-file reducer.py: อัปโหลดไฟล์ reducer.py ส่งไปยังเครื่องโหนดต่าง ๆ ใน Cluster เช่นเดียวกับ Mapper
+
+-reducer ./reducer.py: กำหนดว่าคำสั่งที่จะใช้รันขั้นตอน Reducer คืออะไร (สั่งให้รันสคริปต์ ./reducer.py)
+
+4. -input /user/lab2/Note.txt
+หน้าที่: ระบุตำแหน่งไฟล์ข้อมูลขาเข้า (Input) ที่อยู่ในระบบไฟล์ HDFS (Hadoop Distributed File System) ไม่ใช่ไฟล์บนเครื่องคอมพิวเตอร์ปกติ
+
+5. -output /user/lab2/output
+หน้าที่: ระบุโฟลเดอร์ปลายทางบน HDFS ที่จะใช้เก็บผลลัพธ์ที่ประมวลผลเสร็จแล้ว
+
+⚠️ ข้อควรระวัง: โฟลเดอร์ output นี้ ต้องยังไม่มีอยู่จริงบน HDFS ก่อนสั่งรัน หากมีอยู่แล้ว Hadoop จะฟ้อง Error ทันทีเพื่อป้องกันการเขียนไฟล์ทับข้อมูลเดิม

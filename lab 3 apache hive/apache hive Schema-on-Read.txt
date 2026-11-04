@@ -1,0 +1,56 @@
+#-------------
+# Step 8: การทำ Schema-on-Read
+#-------------
+
+Apache Hive มีแนวคิดที่เป็นหัวใจสำคัญคือ Schema-on-Read (การครอบ Schema ลงบนไฟล์ข้อความดิบ)
+
+8.1
+ถ้ามีไฟล์ stores.csv ดังนี้: 
+
+id,name,quantity
+1,Fresh Pasteurized Milk 1L,15
+2,Whole Wheat Bread,20
+3,Fresh Eggs Grade 2 (Pack of 10),30
+4,Jasmine Rice 5kg,12
+5,Vegetable Oil 1L,25
+6,Instant Noodles (Pack of 5),40
+7,Drinking Water 1.5L (Pack of 6),50
+8,Seasoning Soy Sauce 600ml,18
+9,Fuji Apples (Pack of 4),22
+10,Minced Pork 500g,14
+
+8.2 คัดลอกไฟล์ขึ้น HDFS (สร้างโฟลเดอร์สำหรับเก็บไฟล์):
+# ทำจาก namenode หรือเครื่อง host
+
+hdfs dfs -mkdir -p /lab3
+hdfs dfs -put stores_data.csv /lab3
+
+8.3 สร้าง External Table ใน Hive (ผ่าน Beeline):
+
+- เชื่อมต่อเข้า HiveServer2 ผ่าน Beeline:
+beeline -u "jdbc:hive2://localhost:10000/default" -n root
+
+-SQL-
+# สร้าง database
+
+CREATE DATABASE IF NOT EXISTS stores_db;
+
+USE stores_db; <select database>
+
+CREATE EXTERNAL TABLE IF NOT EXISTS store_tb (
+    id INT,
+    name STRING,
+    quantity INT
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE
+LOCATION '/lab3'
+TBLPROPERTIES ("skip.header.line.count"="1");
+
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ',': ระบุว่าแต่ละคอลัมน์คั่นด้วยจุลภาค
+STORED AS TEXTFILE: ชนิดไฟล์เป็นข้อความธรรมดา
+LOCATION '/lab3': ชี้ไปที่ โฟลเดอร์ (ไม่ต้องระบุชื่อไฟล์ Hive จะอ่านทุกไฟล์ในโฟลเดอร์นี้)
+TBLPROPERTIES ("skip.header.line.count"="1"): สั่งข้ามบรรทัด Header (แถวแรก)
+
+Note: EXTERNAL TABLE จะไม่สามารถ update หรือ delete ได้เพราะข้อมูลจริงๆ จะอยู่ใน file students_data.csv
